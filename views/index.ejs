@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zorluk Seç</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+    }
+
+    video {
+      width: 100%;
+      max-width: 600px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: 28px;
+      text-align: center;
+    }
+
+    .button-container {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      min-width: 120px;
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+
+    .easy   { background-color: #4CAF50; }
+    .medium { background-color: #FFA500; }
+    .hard   { background-color: #f44336; }
+
+    @media (max-width: 600px) {
+      .button-container {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .btn {
+        width: 100%;
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 🎥 Video Kısmı -->
+  <video controls>
+    <source src="/videos/d.mp4" type="video/mp4">
+    Tarayıcınız video etiketini desteklemiyor.
+  </video>
+
+  <h1>Select difficulty</h1>
+
+  <div class="button-container">
+    <form action="/basit" method="get">
+      <button class="btn easy" type="submit">Easy</button>
+    </form>
+    <form action="/orta" method="get">
+      <button class="btn medium" type="submit">Intermediate</button>
+    </form>
+    <form action="/hard" method="get">
+      <button class="btn hard" type="submit">Difficult</button>
+    </form>
+  </div>
+
+</body>
+</html>

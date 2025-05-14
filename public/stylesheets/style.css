@@ -1,0 +1,162 @@
+ /* --- Temel Resetleme ve Kutu Modeli --- */
+ * { margin: 0; padding: 0; box-sizing: border-box; }
+ /* --- Modern Font ve Temel Gövde Stilleri --- */
+ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f7f9; color: #333; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+ /* --- Ana Konteynerler --- */
+ #username-container, #game-container, #phase-transition-container, #game-over-container { background-color: #ffffff; padding: 25px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); width: 100%; max-width: 600px; margin-bottom: 25px; text-align: center; }
+ /* --- Başlık --- */
+ h1 { color: #2c3e50; margin-bottom: 25px; text-align: center; font-weight: 600; }
+ h2 { color: #34495e; margin-bottom: 15px; font-weight: 500; }
+ /* --- Kullanıcı Adı Giriş Alanı --- */
+ #username-container label { display: block; margin-bottom: 10px; font-weight: 500; color: #555; }
+ #username-input { width: 100%; max-width: 300px; padding: 12px 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; margin-bottom: 15px; transition: border-color 0.3s ease; }
+ #username-input:focus { border-color: #007bff; outline: none; }
+ /* --- Genel Buton Stilleri --- */
+ button { padding: 12px 20px; font-size: 1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease, transform 0.1s ease; font-weight: 500; margin: 5px; }
+ button:active:not(:disabled) { transform: scale(0.98); }
+ button:disabled { cursor: not-allowed; opacity: 0.6; }
+ /* --- Spesifik Butonlar --- */
+ #save-username-button { background-color: #007bff; color: white; }
+ #save-username-button:hover:not(:disabled) { background-color: #0056b3; }
+ #speak-button { background-color: #28a745; color: white; }
+ #speak-button:hover:not(:disabled) { background-color: #218838; }
+ #next-button { background-color: #17a2b8; color: white; }
+ #next-button:hover:not(:disabled) { background-color: #138496; }
+ #start-phase2-button, #restart-button { background-color: #ffc107; color: #333; font-weight: 600; }
+ #start-phase2-button:hover:not(:disabled), #restart-button:hover:not(:disabled) { background-color: #e0a800; }
+ /* --- Oyun Alanı --- */
+ #game-container, #phase-transition-container, #game-over-container { display: none; /* Başlangıçta gizli */ }
+ /* --- Kullanıcı Bilgisi ve Skor --- */
+ #user-info { margin-bottom: 20px; font-size: 1.1em; color: #555; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+ #score { font-weight: 700; color: #e8491d; margin-left: 5px; }
+ #username-display { font-weight: 600; color: #333; }
+ /* --- Cümle Gösterim Alanı (Aşama 2) --- */
+ #sentence-display { margin: 20px 0; padding: 15px; background-color: #e9ecef; border-radius: 5px; font-size: 1.1em; color: #495057; text-align: center; display: none; /* Başlangıçta gizli */ }
+ /* --- Aksiyon Butonları Konteyneri --- */
+ .action-buttons-container { text-align: center; margin-bottom: 25px; }
+ /* --- Şık Butonları Konteyneri --- */
+ #choices-container { margin-top: 25px; margin-bottom: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+ /* --- Şık Butonları --- */
+ .choice-button { background-color: #e9ecef; color: #333; border: 1px solid #ced4da; width: 100%; padding: 15px 10px; font-size: 1em; text-align: center; }
+ .choice-button:hover:not(:disabled) { background-color: #dee2e6; border-color: #adb5bd; }
+ .choice-button.correct { background-color: #28a745; color: white; border-color: #218838; }
+ .choice-button.incorrect { background-color: #dc3545; color: white; border-color: #c82333; }
+ /* --- Geçiş/Oyun Sonu Mesajları --- */
+ #phase-score, #final-score { font-size: 1.4em; font-weight: bold; color: #007bff; margin: 15px 0; }
+ /* --- Hata Mesajı --- */
+ #error-message { color: #dc3545; font-weight: bold; margin-top: 15px; text-align: center; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; max-width: 600px; width: 100%; }
+ /* --- Zamanlayıcı Stili --- */
+ #timer-container { 
+     position: fixed; 
+     top: 10px; 
+     right: 10px; 
+     background-color: #e8491d; 
+     color: white; 
+     padding: 8px 15px; 
+     border-radius: 20px; 
+     font-weight: bold; 
+     font-size: 1.2em; 
+     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+     z-index: 100;
+ }
+ #timer { font-weight: 700; }
+ 
+ /* --- Yeni eklenen seçim geçmişi stilleri --- */
+ .selections-history { 
+     margin-top: 20px;
+     padding: 15px;
+     background-color: #f8f9fa;
+     border-radius: 8px;
+     text-align: left;
+ }
+ .selections-history h3 {
+     color: #2c3e50;
+     margin-bottom: 10px;
+ }
+ .selections-history ul {
+     list-style-type: none;
+ }
+ .selections-history li {
+     padding: 8px;
+     margin: 5px 0;
+     background-color: #e9ecef;
+     border-radius: 4px;
+ }
+ .selections-history .correct { color: #28a745; }
+ .selections-history .incorrect { color: #dc3545; }
+ 
+ /* --- Mobil Uyumluluk --- */
+ @media (max-width: 480px) {
+     body { padding: 10px; }
+     #username-container, #game-container, #phase-transition-container, #game-over-container { padding: 20px 15px; }
+     h1 { font-size: 1.8em; margin-bottom: 20px; }
+     #username-input { max-width: none; }
+     #speak-button, #next-button { display: block; width: 100%; margin: 10px 0; }
+     #choices-container { grid-template-columns: 1fr; gap: 8px; }
+     .choice-button { padding: 12px 10px; }
+     #sentence-display { font-size: 1em; }
+     #timer-container { font-size: 1em; padding: 5px 10px; }
+ }
+ #scoreboard-container {
+  max-width: 800px;
+  margin: 20px auto;
+  background-color: #f7f7f7;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+#scoreboard-table th, #scoreboard-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+#scoreboard-table th {
+  background-color: #4CAF50;
+  color: white;
+}
+
+#scoreboard-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+#scoreboard-table tr:hover {
+  background-color: #e0e0e0;
+}
+
+/* İlk 3 sıra için özel stil */
+#scoreboard-table tr.top-1 td {
+  background-color: gold;
+  font-weight: bold;
+}
+
+#scoreboard-table tr.top-2 td {
+  background-color: silver;
+  font-weight: bold;
+}
+
+#scoreboard-table tr.top-3 td {
+  background-color: #cd7f32; /* Bronz */
+  font-weight: bold;
+}
+
+#close-scoreboard-button, #show-scoreboard-button, #show-final-scoreboard-button {
+  padding: 8px 15px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+#close-scoreboard-button:hover, #show-scoreboard-button:hover, #show-final-scoreboard-button:hover {
+  background-color: #45a049;
+}

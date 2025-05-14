@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocabulary Game level 1</title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+
+</head>
+<body>
+
+
+
+    <h1 id="main-title">Let's Pronounce Correctly</h1>
+    
+    <div id="username-container">
+        <h2>Start the game!</h2>
+        <label for="username-input">Username:</label>
+        <input type="text" id="username-input" required>
+        <button id="save-username-button">save and start</button>
+    </div>
+
+    <div id="timer-container" style="display: none;">
+        Your Time: <span id="timer">60</span> seconds
+    </div>
+
+    <div id="game-container">
+        <div id="user-info">
+            Hello, <strong id="username-display"></strong>! | Score: <span id="score">0</span>
+        </div>
+
+        <div id="sentence-display">
+            </div>
+        <div class="action-buttons-container">
+             <button id="speak-button" title="Dinle">🔊 Listen</button>
+        </div>
+        <div id="choices-container">
+            </div>
+         <div class="action-buttons-container">
+            <button id="next-button" title="Sonraki" disabled>Next</button>
+         </div>
+    </div>
+
+    <div id="phase-transition-container">
+        <h2>Level 1 completed!</h2>
+        <p>Congratulations! Level 1 is completed.</p>
+        <p>Total Score: <span id="phase-score">0</span></p>
+        <p>level 1 time: <span id="phase1-completion-time">0</span> seconds</p>
+        <div class="selections-history">
+            <h3>level 1 selection history</h3>
+            <ul id="phase1-history"></ul>
+        </div>
+        <button id="start-phase2-button">start level 2</button>
+    </div>
+    <!-- Skorboard bölümü - Ana HTML'e ekleyin (game-over-container'dan önce) -->
+<div id="scoreboard-container" style="display: none;">
+    <h2>Scoreboard - Best Players</h2>
+    <table id="scoreboard-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Username</th>
+                <th>Score</th>
+                <th>time (sc)</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody id="scoreboard-body">
+            <!-- Skorlar JavaScript ile yüklenecek -->
+        </tbody>
+    </table>
+    <button id="close-scoreboard-button">close</button>
+</div>
+
+<!-- Skorboard butonunu main menu'ye ekleyin (username-container içine) -->
+<button id="show-scoreboard-button" style="margin-top: 15px;">Scoreboard</button>
+
+<!-- Oyun bitti ekranına Skorboard butonu ekleyin -->
+<button id="show-final-scoreboard-button" style="margin-top: 10px;">Show the Scoreboard</button>
+
+
+    <div id="game-over-container">
+        <h2>Game Finished!</h2>
+        <p>Congratulations, all levels completed!</p>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <p>Total Game Time: <span id="total-completion-time">0</span> seconds</p>
+        <div class="selections-history">
+            <h3>all choice history</h3>
+            <ul id="final-history"></ul>
+        </div>
+        <button id="restart-button">Play again</button>
+    </div>
+
+     <% if (error) { %>
+        <p id="error-message"><%= error %></p>
+    <% } %>
+
+    <script>
+        // --- Veriyi EJS'den Alma ---
+        const allWordsData = <%- JSON.stringify(sozcukler) %>;
+        const originalWordList = Object.keys(allWordsData);
+
+        // --- DOM Elementleri ---
+        const mainTitle = document.getElementById('main-title');
+        const usernameContainer = document.getElementById('username-container');
+        const gameContainer = document.getElementById('game-container');
+        const phaseTransitionContainer = document.getElementById('phase-transition-container');
+        const gameOverContainer = document.getElementById('game-over-container');
+        const timerContainer = document.getElementById('timer-container');
+        const timerDisplay = document.getElementById('timer');
+
+        const usernameInput = document.getElementById('username-input');
+        const saveUsernameButton = document.getElementById('save-username-button');
+        const usernameDisplay = document.getElementById('username-display');
+        const scoreDisplay = document.getElementById('score');
+        const sentenceDisplay = document.getElementById('sentence-display'); // Aşama 2 için
+        const speakButton = document.getElementById('speak-button');
+        const choicesContainer = document.getElementById('choices-container');
+        const nextButton = document.getElementById('next-button');
+        const phaseScoreDisplay = document.getElementById('phase-score');
+        const startPhase2Button = document.getElementById('start-phase2-button');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+        const errorMessage = document.getElementById('error-message');
+        const phase1CompletionTime = document.getElementById('phase1-completion-time');
+        const totalCompletionTime = document.getElementById('total-completion-time');
+        
+
+        // --- Oyun Değişkenleri ---
+        let currentPhase = 1;
+        let currentScore = 0;
+        let shuffledWordsPhase1 = [];
+        let shuffledWordsPhase2 = [];
+        let wordPointer = 0; // Mevcut listedeki sıra
+        let currentWordData = null;
+        let correctAnswer = '';
+        let speechSupported = ('speechSynthesis' in window);
+        let currentUsername = '';
+        
+        // Zamanlayıcı değişkenleri
+        let timeRemaining = 60;
+        let timerInterval = null;
+        let gameStartTime = 0;
+        let phase1EndTime = 0;
+        let gameEndTime = 0;
+        let phase1Duration = 0;
+        let totalGameDuration = 0;
+        
+        // Seçim geçmişi için yeni eklenen değişken
+        let selectionHistory = [];
+
+        // --- Çerez (Cookie) Fonksiyonları ---
+        function setCookie(name, value, days) { /* ... (öncekiyle aynı, ama artık kullanılmıyor) ... */ }
+        function getCookie(name) { /* ... (öncekiyle aynı) ... */ }
+        function deleteCookie(name) {
+            document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+        }
+
+        // --- Yardımcı Fonksiyonlar ---
+        function shuffleArray(array) {
+            let newArray = [...array]; // Orijinal diziyi bozmamak için kopyala
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // --- Zamanlayıcı Fonksiyonları ---
+        function startTimer() {
+            timerContainer.style.display = 'block';
+            timerDisplay.textContent = timeRemaining;
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                timerDisplay.textContent = timeRemaining;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeUp();
+                }
+            }, 1000);
+        }
+        
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+        
+        function resetTimer() {
+            stopTimer();
+            timeRemaining = 60;
+            timerDisplay.textContent = timeRemaining;
+        }
+        
+        // --- Rank Gönderme Fonksiyonu ---
+        function sendRank() {
+            const payload = {
+                username: currentUsername,
+                score: currentScore,
+                totalTime: totalGameDuration
+            };
+            fetch('https://english.secaltubitak.site/rank', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Sunucu hatası');
+                return response.json();
+            })
+            .then(data => console.log('Rank kaydedildi:', data))
+            .catch(err => console.error('Rank kaydedilirken hata:', err));
+        }
+        
+        function handleTimeUp() {
+            stopTimer();
+            gameEndTime = Date.now();
+            totalGameDuration = Math.floor((gameEndTime - gameStartTime) / 1000);
+            
+            // Rank sistemine puanı gönder
+            sendRank();
+            
+            gameContainer.style.display = 'none';
+            finalScoreDisplay.textContent = currentScore;
+            totalCompletionTime.textContent = totalGameDuration;
+            renderSelectionHistory('final-history'); // Seçim geçmişini göster
+            gameOverContainer.style.display = 'block';
+            mainTitle.textContent = "Oyun Bitti! - Süre Doldu";
+            timerContainer.style.display = 'none';
+        }
+
+        // --- Konuşma Fonksiyonu ---
+        function speakContent() {
+            if (!speechSupported) {
+                console.warn("Tarayıcınız konuşma sentezini desteklemiyor.");
+                return;
+            }
+            if (!correctAnswer) return; // Henüz kelime seçilmediyse
+
+            let textToSpeak = '';
+            if (currentPhase === 1) {
+                textToSpeak = correctAnswer; // Aşama 1: Kelimeyi oku
+            } else {
+                // Aşama 2: Tam cümleyi oku
+                textToSpeak = allWordsData[correctAnswer]?.cumle?.tam || correctAnswer; // Cümle yoksa kelimeyi oku
+            }
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.5; // Yavaş hız
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- Seçim Geçmişi Görüntüleme Fonksiyonu ---
+        function renderSelectionHistory(containerId, phase = null) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const filtered = phase ? 
+                selectionHistory.filter(item => item.phase === phase) : 
+                selectionHistory;
+            
+            container.innerHTML = filtered.map((item, index) => `
+                <li class="${item.isCorrect ? 'correct' : 'incorrect'}">
+                    ${index + 1}. Question - Word: "${item.word}" → 
+                    chosen: "${item.selected}" 
+                    (${item.isCorrect ? '✓' : '✗'})
+                </li>
+            `).join('');
+        }
+
+        // --- Oyun Mantığı ---
+        function loadNextWord() {
+            const currentList = currentPhase === 1 ? shuffledWordsPhase1 : shuffledWordsPhase2;
+
+            // Mevcut aşamanın kelimeleri bitti mi?
+            if (wordPointer >= currentList.length) {
+                if (currentPhase === 1) {
+                    // Aşama 1 bitti, Aşama 2'ye geçiş ekranını göster
+                    stopTimer();
+                    phase1EndTime = Date.now();
+                    phase1Duration = Math.floor((phase1EndTime - gameStartTime) / 1000);
+                    
+                    gameContainer.style.display = 'none';
+                    phaseScoreDisplay.textContent = currentScore;
+                    phase1CompletionTime.textContent = phase1Duration;
+                    renderSelectionHistory('phase1-history', 1); // Aşama 1 geçmişini göster
+                    phaseTransitionContainer.style.display = 'block';
+                    mainTitle.textContent += " - level 1 completed";
+                    timerContainer.style.display = 'none';
+                } else {
+                    // Aşama 2 bitti, Oyun Sonu ekranını göster
+                    stopTimer();
+                    gameEndTime = Date.now();
+                    totalGameDuration = Math.floor((gameEndTime - gameStartTime) / 1000);
+                    
+                    // Rank sistemine puanı gönder
+                    sendRank();
+                    
+                    gameContainer.style.display = 'none';
+                    finalScoreDisplay.textContent = currentScore;
+                    totalCompletionTime.textContent = totalGameDuration;
+                    renderSelectionHistory('final-history'); // Tüm seçim geçmişini göster
+                    gameOverContainer.style.display = 'block';
+                    mainTitle.textContent = "game over!";
+                    timerContainer.style.display = 'none';
+                }
+                return; // İşlemi bitir, yeni kelime yükleme
+            }
+
+            // Kelimeyi al ve quiz'i kur
+            const nextWord = currentList[wordPointer];
+            setupQuiz(nextWord);
+            wordPointer++; // Sıradaki kelimeye geç
+        }
+
+        function setupQuiz(word) {
+             if (!word || !allWordsData[word]) {
+                  console.error(`Kelime verisi bulunamadı: ${word}`);
+                  choicesContainer.innerHTML = "<p>Bu kelime için veri bulunamadı.</p>";
+                  speakButton.disabled = true; nextButton.disabled = true; return;
+             }
+
+            correctAnswer = word;
+            currentWordData = allWordsData[word];
+
+            // Aşama 2'ye özel: Eksik cümleyi göster
+            if (currentPhase === 2) {
+                const incompleteSentence = currentWordData.cumle?.eksik;
+                if (incompleteSentence) {
+                    sentenceDisplay.textContent = incompleteSentence;
+                    sentenceDisplay.style.display = 'block';
+                } else {
+                    sentenceDisplay.style.display = 'none'; // Cümle yoksa gizle
+                }
+                speakButton.textContent = "🔊 Listen to the sentence";
+                speakButton.title = "listen full sentences";
+            } else {
+                sentenceDisplay.style.display = 'none'; // Aşama 1'de cümle alanını gizle
+                speakButton.textContent = "🔊 listen the word";
+                speakButton.title = "listen the word";
+            }
+
+            // Şıkları oluştur (Aşama 1 ve 2 için aynı mantık)
+            let choices = [correctAnswer];
+            let similarWords = currentWordData.benzerler ? shuffleArray([...currentWordData.benzerler]) : [];
+             const correctIndexInSimilar = similarWords.indexOf(correctAnswer);
+             if (correctIndexInSimilar > -1) { similarWords.splice(correctIndexInSimilar, 1); }
+
+             const distractorsNeeded = 3;
+             for(let i = 0; i < similarWords.length && choices.length < (distractorsNeeded + 1); i++) {
+                 if(!choices.includes(similarWords[i])) { choices.push(similarWords[i]); }
+             }
+            // Distractors'i karıştır ve 3 şıka dönüştür (doğru cevap ile toplam 4 şık)
+            choices = shuffleArray([correctAnswer, ...similarWords.slice(0, 3)]);
+
+            // Butonları oluştur
+            choicesContainer.innerHTML = '';
+            choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.classList.add('choice-button');
+                button.textContent = choice;
+                button.dataset.answer = choice;
+                button.addEventListener('click', handleAnswerClick);
+                choicesContainer.appendChild(button);
+            });
+
+            speakButton.disabled = false;
+            nextButton.disabled = true; // Cevap verilince aktifleşecek
+        }
+
+        function handleAnswerClick(event) {
+            const selectedButton = event.target;
+            const selectedAnswer = selectedButton.dataset.answer;
+            const allChoiceButtons = choicesContainer.querySelectorAll('.choice-button');
+            allChoiceButtons.forEach(btn => btn.disabled = true);
+
+            if (selectedAnswer === correctAnswer) {
+                selectedButton.classList.add('correct');
+                currentScore += 5;
+                scoreDisplay.textContent = currentScore; // Skoru ekranda güncelle
+            } else {
+                selectedButton.classList.add('incorrect');
+                const correctButton = choicesContainer.querySelector(`.choice-button[data-answer="${correctAnswer}"]`);
+                if (correctButton) { correctButton.classList.add('correct'); }
+            }
+            
+            // Seçim geçmişine ekleme
+            selectionHistory.push({
+                phase: currentPhase,
+                word: correctAnswer,
+                selected: selectedAnswer,
+                isCorrect: selectedAnswer === correctAnswer,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            
+            nextButton.disabled = false; // İlerle butonunu aktif et
+        }
+
+        function startPhase2() {
+            currentPhase = 2;
+            wordPointer = 0; // Sayacı sıfırla
+            shuffledWordsPhase2 = shuffleArray(originalWordList); // Aşama 2 için listeyi karıştır
+
+            phaseTransitionContainer.style.display = 'none'; // Geçiş ekranını gizle
+            gameContainer.style.display = 'block';          // Oyun ekranını göster
+            mainTitle.textContent = "Let's Pronounce Correctly! Level 2"; // Başlığı güncelle
+            scoreDisplay.textContent = currentScore; // Skoru tekrar yaz (gerekliyse)
+            usernameDisplay.textContent = currentUsername; // Kullanıcı adını tekrar yaz
+            
+            // Aşama 1 seçim geçmişini render et
+            renderSelectionHistory('phase1-history', 1);
+            
+            // Aşama 2 için zamanlayıcıyı yeniden başlat
+            resetTimer();
+            startTimer();
+            timerContainer.style.display = 'block';
+
+            loadNextWord(); // Aşama 2'nin ilk kelimesini yükle
+        }
+
+        function restartGame() {
+            // Oyun yeniden başlatılmadan önce son kez seçim geçmişini göster
+            renderSelectionHistory('final-history');
+            window.location.reload(); // Sayfayı yeniden yükleyerek oyunu sıfırla
+        }
+
+        // --- Başlangıç Ayarları ---
+        function initializeGame() {
+            console.log("Oyun başlatılıyor, çerezler siliniyor...");
+            deleteCookie('username');
+            deleteCookie('score');
+
+            if (errorMessage) {
+                 console.error("Sunucu Hatası:", errorMessage.textContent);
+                 usernameContainer.style.display = 'none'; return;
+             }
+             if (originalWordList.length === 0 && !errorMessage) {
+                 console.error("Başlatılacak kelime bulunamadı.");
+                 usernameContainer.innerHTML = "<p>Oyun başlatılamıyor. Kelime verisi yok.</p>";
+                 usernameContainer.style.display = 'block'; return;
+             }
+
+            // Her zaman kullanıcı adı girişi ile başla
+            usernameContainer.style.display = 'block';
+            gameContainer.style.display = 'none';
+            phaseTransitionContainer.style.display = 'none';
+            gameOverContainer.style.display = 'none';
+            timerContainer.style.display = 'none';
+
+            // --- Event Listener'lar ---
+            saveUsernameButton.addEventListener('click', () => {
+                currentUsername = usernameInput.value.trim(); // Kullanıcı adını değişkene ata
+                if (currentUsername) {
+                    usernameDisplay.textContent = currentUsername; // Ekranda göster
+                    currentScore = 0; // Skoru sıfırla
+                    scoreDisplay.textContent = currentScore;
+                    currentPhase = 1; // Aşama 1'den başla
+                    wordPointer = 0; // Sayacı sıfırla
+                    shuffledWordsPhase1 = shuffleArray(originalWordList); // Aşama 1 listesini karıştır
+                    selectionHistory = []; // Seçim geçmişini temizle
+
+                    usernameContainer.style.display = 'none'; // Giriş ekranını gizle
+                    gameContainer.style.display = 'block';     // Oyun ekranını göster
+                    mainTitle.textContent = "Let's Pronounce Correctly! Level 1"; // Başlığı ayarla
+                    
+                    // Oyunu başlat ve zamanlayıcıyı başlat
+                    gameStartTime = Date.now();
+                    startTimer();
+
+                    loadNextWord(); // Aşama 1'in ilk kelimesini yükle
+                } else {
+                    alert('Please enter a correct username');
+                }
+            });
+
+            speakButton.addEventListener('click', speakContent); // Güncellenmiş konuşma fonksiyonunu çağır
+            nextButton.addEventListener('click', loadNextWord);
+            startPhase2Button.addEventListener('click', startPhase2); // Aşama 2'yi başlatan butona olay ekle
+            restartButton.addEventListener('click', restartGame); // Yeniden başlatma butonuna olay ekle
+        }
+
+        // Sayfa yüklendiğinde oyunu başlat
+        window.addEventListener('DOMContentLoaded', initializeGame);
+
+
+        
+        let scoreboardContainer;
+    let scoreboardBody;
+    let showScoreboardButton;
+    let showFinalScoreboardButton;
+    let closeScoreboardButton;
+    
+    // Skor verileri - oyun sonunda doldurulacak
+    let rankData = null;
+    
+    // Skorboard'u yükleme fonksiyonu
+    function loadScoreboard() {
+        // Eğer zaten rankData varsa, onu kullan
+        if (rankData) {
+            displayScoreboard(rankData);
+            return;
+        }
+        
+        // Veri yoksa yükleniyor göster
+        scoreboardBody.innerHTML = '<tr><td colspan="5"><div class="loader"></div><p>Skorlar yükleniyor...</p></td></tr>';
+        
+        // Son rank gönderiminin yanıtını kullan ya da oyun sonunda kaydedilen veriyi kullan
+        fetch('https://english.secaltubitak.site/rank', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: "score_query", // Sadece veri almak için geçici istek
+                score: 0,
+                totalTime: 0
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Sunucu hatası');
+            return response.json();
+        })
+        .then(data => {
+            rankData = data.data || [];
+            displayScoreboard(rankData);
+        })
+        .catch(err => {
+            console.error('Skorboard yüklenirken hata:', err);
+            scoreboardBody.innerHTML = '<tr><td colspan="5">Skorlar yüklenemedi. Lütfen daha sonra tekrar deneyin.</td></tr>';
+        });
+    }
+    
+    // Skorboard'u gösterme fonksiyonu
+    function displayScoreboard(scores) {
+        if (!Array.isArray(scores) || scores.length === 0) {
+            scoreboardBody.innerHTML = '<tr><td colspan="5">Henüz hiç skor kaydedilmemiş.</td></tr>';
+            return;
+        }
+        
+        // Skorları sırala: Önce puana göre azalan, sonra süreye göre artan
+        const sortedScores = scores.sort((a, b) => {
+            if (b.score !== a.score) {
+                return b.score - a.score; // Yüksek puan önce
+            }
+            return a.totalTime - b.totalTime; // Aynı puanda düşük süre önce
+        });
+        
+        // Tabloyu oluştur
+        scoreboardBody.innerHTML = '';
+        sortedScores.forEach((score, index) => {
+            const row = document.createElement('tr');
+            
+            // İlk 3 sıra için özel sınıf ekle
+            if (index === 0) row.classList.add('top-1');
+            else if (index === 1) row.classList.add('top-2');
+            else if (index === 2) row.classList.add('top-3');
+            
+            // Tarih formatla
+            const scoreDate = new Date(score.createdAt);
+            const formattedDate = `${scoreDate.toLocaleDateString()} ${scoreDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${score.username}</td>
+                <td>${score.score}</td>
+                <td>${score.totalTime}</td>
+                <td>${formattedDate}</td>
+            `;
+            scoreboardBody.appendChild(row);
+        });
+    }
+    
+    // Mevcut sendRank fonksiyonunu düzenleme
+    const originalSendRank = sendRank;
+    sendRank = function() {
+        const payload = {
+            username: currentUsername,
+            score: currentScore,
+            totalTime: totalGameDuration
+        };
+        
+        fetch('https://english.secaltubitak.site/rank', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Sunucu hatası');
+            return response.json();
+        })
+        .then(data => {
+            console.log('Rank kaydedildi:', data);
+            // Rank verilerini sakla
+            if (data && data.data) {
+                rankData = data.data;
+            }
+        })
+        .catch(err => console.error('Rank kaydedilirken hata:', err));
+    };
+    
+    // Skorboard'u göster
+    function showScoreboard() {
+        // Diğer konteynerları gizle
+        usernameContainer.style.display = 'none';
+        gameContainer.style.display = 'none';
+        phaseTransitionContainer.style.display = 'none';
+        gameOverContainer.style.display = 'none';
+        timerContainer.style.display = 'none';
+        
+        // Skorboard'u göster
+        scoreboardContainer.style.display = 'block';
+        loadScoreboard();
+    }
+    
+    // Skorboard'u kapat
+    function closeScoreboard() {
+        scoreboardContainer.style.display = 'none';
+        
+        // Oyun durumuna göre uygun ekranı tekrar göster
+        if (gameEndTime > 0) {
+            gameOverContainer.style.display = 'block';
+        } else if (phase1EndTime > 0 && currentPhase === 1) {
+            phaseTransitionContainer.style.display = 'block';
+        } else if (currentUsername) {
+            gameContainer.style.display = 'block';
+            if (timerInterval) timerContainer.style.display = 'block';
+        } else {
+            usernameContainer.style.display = 'block';
+        }
+    }
+    
+    // DOM hazır olduğunda skorboard elemanlarını oluştur ve bağla
+    function initScoreboard() {
+        // Eğer HTML'de zaten eklenmişse elemanları bul
+        scoreboardContainer = document.getElementById('scoreboard-container');
+        scoreboardBody = document.getElementById('scoreboard-body');
+        showScoreboardButton = document.getElementById('show-scoreboard-button');
+        showFinalScoreboardButton = document.getElementById('show-final-scoreboard-button');
+        closeScoreboardButton = document.getElementById('close-scoreboard-button');
+        
+        // Ana menüye skorboard butonu ekle
+        if (usernameContainer && !showScoreboardButton) {
+            showScoreboardButton = document.createElement('button');
+            showScoreboardButton.id = 'show-scoreboard-button';
+            showScoreboardButton.textContent = 'Scoreboard';
+            showScoreboardButton.style.marginTop = '15px';
+            usernameContainer.appendChild(showScoreboardButton);
+        }
+        
+        // Oyun sonu ekranına skorboard butonu ekle
+        if (gameOverContainer && !showFinalScoreboardButton) {
+            showFinalScoreboardButton = document.createElement('button');
+            showFinalScoreboardButton.id = 'show-final-scoreboard-button';
+            showFinalScoreboardButton.textContent = 'show the \'u Scoreboard';
+            showFinalScoreboardButton.style.marginTop = '10px';
+            const restartButton = document.getElementById('restart-button');
+            restartButton.parentNode.insertBefore(showFinalScoreboardButton, restartButton);
+        }
+        
+        // Olay dinleyicileri bağla
+        if (showScoreboardButton) showScoreboardButton.addEventListener('click', showScoreboard);
+        if (showFinalScoreboardButton) showFinalScoreboardButton.addEventListener('click', showScoreboard);
+        if (closeScoreboardButton) closeScoreboardButton.addEventListener('click', closeScoreboard);
+    }
+    
+    // Orijinal başlatma fonksiyonunu genişlet
+    const originalInitializeGame = window.initializeGame || function(){};
+    window.initializeGame = function() {
+        originalInitializeGame();
+        initScoreboard();
+    };
+    
+    // Sayfa yüklendiğinde skorboard hazırlıklarını yap
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initScoreboard);
+    } else {
+        initScoreboard();
+    }
+    </script>
+
+</body>
+</html>
